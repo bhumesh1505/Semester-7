@@ -12,7 +12,7 @@ class Node
     ll tempQuantum;
     string name;
     ll id;
-    Node(ll arrivalTime , ll executionTime, ll period, ll deadline, ll quantum ,  ll id)
+    Node(ll id, ll arrivalTime , ll executionTime, ll period, ll deadline ,  ll quantum = 3)
     {
         this->arrivalTime = arrivalTime;
         this->executionTime = executionTime;
@@ -32,7 +32,22 @@ bool comparator(const Node &s1 ,const Node &s2)
     }
     return s1.arrivalTime < s2.arrivalTime;
 }
-
+bool comparatorPeriod(const Node &s1 ,const Node &s2)
+{
+    if(s1.arrivalTime == s2.arrivalTime)
+    {
+        return s1.period < s2.period;
+    }
+    return s1.arrivalTime < s2.arrivalTime;
+}
+bool comparatorDeadline(const Node &s1 ,const Node &s2)
+{
+    if(s1.arrivalTime == s2.arrivalTime)
+    {
+        return s1.deadline < s2.deadline;
+    }
+    return s1.arrivalTime < s2.arrivalTime;
+}
 vector<ll> split(string s){
 
     vector<ll> arr;
@@ -212,6 +227,96 @@ void weighted_round_robin(vector<Node> tasks){
     cout << endl << "_______________________________________________________________________________________________________________" << endl;
 }
 
+void rma(vector<Node> tasks){
+
+}
+
+void cyclic(vector<Node> tasks){
+
+	cout << "\nCyclic " << endl;
+	ll f=0;
+	ll h;
+	sort(tasks.begin(),tasks.end(),comparatorPeriod);
+	for(int i=0;i<tasks.size();i++)
+	{
+		f = max(tasks[i].executionTime,f);
+	}
+	h = tasks[0].period * tasks[1].period / (__gcd(tasks[0].period,tasks[1].period));
+	for(int i=2;i<tasks.size();i++)
+	{
+		h = h*tasks[i].period / (__gcd(h,tasks[i].period));
+	}
+	f++;
+	while(f <= h )
+	{
+		if(h % f == 0)
+		{
+			bool found = true;
+			for(ll i=0;i<tasks.size();i++)
+			{
+				if(2*f - __gcd(tasks[i].period, f) > tasks[i].deadline)
+				{
+					found = false;
+				}
+			}
+			if(found == true)
+			{
+				break;
+			}
+		}
+		f++;
+	}
+	//f = 4;
+	cout << "Frame Size : " << f << endl;
+	vector<Node> subtasks;
+	for(ll i=0;i<tasks.size();i++)
+	{
+		ll arrivalTime = 0;
+		ll deadline = tasks[i].period;
+		for(ll j=0;j<h/tasks[i].period;j++)
+		{
+			subtasks.push_back(Node((i+1)*10+(j+1),arrivalTime,tasks[i].executionTime,tasks[i].period,deadline));
+			arrivalTime = deadline;
+			deadline = deadline + tasks[i].period;
+		}
+	}
+	sort(subtasks.begin(),subtasks.end(),comparatorDeadline);
+	for (ll i = 0; i < subtasks.size(); ++i)
+	{
+		cout << subtasks[i].name << " " << subtasks[i].executionTime << " " << subtasks[i].arrivalTime << " " << subtasks[i].deadline << endl;
+	}
+
+	ll t = 0;
+    ll i = 0;
+    cout << "(" << t << ")" ;
+    ll remainingFrameSize = f ;
+    while(i < subtasks.size())
+    {
+        if(subtasks[i].executionTime > 0 && subtasks[i].executionTime <= remainingFrameSize && subtasks[i].arrivalTime <= t)
+        {
+            cout << "--" << subtasks[i].name << "--";
+            subtasks[i].executionTime--;
+        }
+        else if(subtasks[i].arrivalTime > t || subtasks[i].executionTime > remainingFrameSize)
+        {
+            cout << "--*--" ;
+        }
+        if(subtasks[i].executionTime == 0)
+        {
+            i++;
+        }
+        remainingFrameSize--;
+        if(remainingFrameSize == 0)
+        {
+        	remainingFrameSize = f;
+        }
+        t++;
+        cout << "(" << t << ")";
+    }
+
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
+}
+
 int main(){
     ll n=0;
     vector<Node> tasks;
@@ -222,7 +327,7 @@ int main(){
         getline(fin, line);
         if(line.length() > 0){
             vector<ll> arr = split(line);
-            tasks.push_back(Node(arr[0],arr[1],arr[2],arr[3],arr[4],n+1));
+            tasks.push_back(Node(n+1,arr[0],arr[1],arr[2],arr[3],arr[4]));
             n++;
         }
     }
@@ -234,11 +339,16 @@ int main(){
         cout << "T" << tasks[i].id << " " << tasks[i].arrivalTime << " " << tasks[i].executionTime << " " << tasks[i].period << " " << tasks[i].deadline << " " << tasks[i].quantum << endl;
     }
     cout << endl;
-    fifo(tasks);
-    lifo(tasks);
+    //fifo(tasks);
+    //lifo(tasks);
 
-    round_robin(tasks);
-    weighted_round_robin(tasks);
+    //round_robin(tasks);
+    //weighted_round_robin(tasks);
 
+    //rma(tasks);
+    //dma(tasks);
+
+
+    cyclic(tasks);
     return 0;
 }
