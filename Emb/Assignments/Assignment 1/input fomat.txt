@@ -1,1 +1,17 @@
 arrivalTime executionTime period deadline quatumTime
+
+
+//cyclic scheduling
+0 1 4 4 3
+0 2 5 7 2
+0 1 20 20 3
+0 2 20 20 3
+
+//edf
+0 1 4 4 3
+0 2 6 6 2
+0 3 8 8 3
+
+
+//lst
+

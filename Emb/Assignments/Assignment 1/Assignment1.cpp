@@ -230,7 +230,15 @@ void weighted_round_robin(vector<Node> tasks){
 void rma(vector<Node> tasks){
 
 }
-
+ll hyperperiod(vector<Node> tasks){
+	ll h;
+	h = tasks[0].period * tasks[1].period / (__gcd(tasks[0].period,tasks[1].period));
+	for(int i=2;i<tasks.size();i++)
+	{
+		h = h*tasks[i].period / (__gcd(h,tasks[i].period));
+	}
+	return h;
+}
 void cyclic(vector<Node> tasks){
 
 	cout << "\nCyclic " << endl;
@@ -241,12 +249,9 @@ void cyclic(vector<Node> tasks){
 	{
 		f = max(tasks[i].executionTime,f);
 	}
-	h = tasks[0].period * tasks[1].period / (__gcd(tasks[0].period,tasks[1].period));
-	for(int i=2;i<tasks.size();i++)
-	{
-		h = h*tasks[i].period / (__gcd(h,tasks[i].period));
-	}
-	f++;
+	h = hyperperiod(tasks);
+
+	vector<ll> frames;
 	while(f <= h )
 	{
 		if(h % f == 0)
@@ -261,13 +266,19 @@ void cyclic(vector<Node> tasks){
 			}
 			if(found == true)
 			{
-				break;
+				frames.push_back(f);
 			}
 		}
 		f++;
 	}
 	//f = 4;
-	cout << "Frame Size : " << f << endl;
+	cout << "Frame Size : " ;
+	for(int i=0;i<frames.size();i++)
+	{
+		cout << frames[i] << " ";
+	}
+	f = frames[frames.size()-1];
+	cout << endl;
 	vector<Node> subtasks;
 	for(ll i=0;i<tasks.size();i++)
 	{
@@ -317,6 +328,173 @@ void cyclic(vector<Node> tasks){
     cout << endl << "_______________________________________________________________________________________________________________" << endl;
 }
 
+class smallestDeadlineComparator
+{
+public:
+    int operator() (const Node &p1, const Node &p2)
+    {
+        return p1.deadline > p2.deadline;
+    }
+};
+
+void edf(vector<Node> tasks){
+
+	cout << "Earlist Deadline First" << endl;
+
+	sort(tasks.begin(),tasks.end(),comparator);
+	ll t = 0;
+	ll completed = 0;
+	ll h = hyperperiod(tasks);
+	cout << "(" << t << ")" ;
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	for(int i=0;i<tasks.size();i++)
+	{
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+	}
+
+	priority_queue <Node, vector<Node>, smallestDeadlineComparator > readyQueue;
+	queue<Node> waitingQueue;
+	ll i=0;
+	while(t < h)
+	{
+		while(i < tasks.size() && tasks[i].arrivalTime <= t)
+		{
+			readyQueue.push(tasks[i]);
+			i++;
+		}
+		while( !waitingQueue.empty() && waitingQueue.front().deadline == t)
+		{
+			Node x = waitingQueue.front();
+			x.deadline = x.deadline + x.period;
+			readyQueue.push(x);
+			waitingQueue.pop();
+		}
+
+		if(readyQueue.empty())
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+			if(tempExecutionTime[readyQueue.top().id] > 0) //
+            {
+                cout << "--" << readyQueue.top().name << "--";
+                tempExecutionTime[readyQueue.top().id]--;
+            }
+        	if(tempExecutionTime[readyQueue.top().id] == 0)
+        	{
+        		Node x = readyQueue.top();
+        		tempExecutionTime[readyQueue.top().id] = x.executionTime;
+        		waitingQueue.push(x);
+        		readyQueue.pop();
+        	}
+		}
+		t++;
+        cout << "(" << t << ")";
+	}
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
+}
+
+void lst(vector<Node> tasks){
+
+	cout << "Least Slack Time Scheduling ... " << endl;
+
+	sort(tasks.begin(),tasks.end(),comparator);
+	ll t = 0;
+	ll completed = 0;
+	ll h = hyperperiod(tasks);
+	cout << "(" << t << ")" ;
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	vector<bool> isReady(tasks.size()+1);
+	
+	for(int i=0;i<tasks.size();i++)
+	{
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+		isReady[tasks[i].id] = true;
+	}
+
+	ll i=0;
+	ll selectTask=-1,previouslySelectedTask=-1;
+	while(t < h)
+	{
+		for(ll i=0;i<tasks.size();i++)
+		{
+			if(!isReady[tasks[i].id] && tasks[i].arrivalTime <= t && t % tasks[i].period == 0)
+			{
+				isReady[tasks[i].id] = true;
+			}
+		}
+		previouslySelectedTask = selectTask;
+		selectTask = -1;
+		ll minSlack = INT_MAX;
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				ll slackTime;
+				if(tasks[i].period <= t)
+				{
+					// real time since cycle starts
+					slackTime = tasks[i].deadline - (t % tasks[i].period) - tempExecutionTime[tasks[i].id];	
+				}
+				else
+				{
+					slackTime = tasks[i].deadline - t - tempExecutionTime[tasks[i].id];		
+				}
+
+				if(minSlack > slackTime)
+				{
+					minSlack = slackTime;
+					selectTask = i;
+				}
+			}
+		}
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				ll slackTime;
+				if(tasks[i].period < t)
+				{
+					// real time since cycle starts
+					slackTime = tasks[i].deadline - (t % tasks[i].period) - tempExecutionTime[tasks[i].id];	
+				}
+				else
+				{
+					slackTime = tasks[i].deadline - t - tempExecutionTime[tasks[i].id];		
+				}
+
+				if(minSlack == slackTime)
+				{
+					if( i == previouslySelectedTask)
+					{
+						selectTask = i;
+						break;
+					}
+				}
+			}
+		}
+		
+		if(selectTask == -1)
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+	        cout << "--" << tasks[selectTask].name << "--";
+			tempExecutionTime[tasks[selectTask].id]--;
+			if(tempExecutionTime[tasks[selectTask].id] == 0)
+	    	{
+	    		tempExecutionTime[tasks[selectTask].id] = tasks[selectTask].executionTime;
+	    		isReady[tasks[selectTask].id] = false;
+	    	}
+		}
+		t++;
+        cout << "(" << t << ")";
+	}
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
+}
+
 int main(){
     ll n=0;
     vector<Node> tasks;
@@ -349,6 +527,10 @@ int main(){
     //dma(tasks);
 
 
-    cyclic(tasks);
+
+    //cyclic(tasks);
+    //edf(tasks);
+    lst(tasks);
+
     return 0;
 }
