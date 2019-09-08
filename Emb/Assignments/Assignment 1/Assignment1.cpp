@@ -24,30 +24,38 @@ class Node
         this->name = "T"+to_string(id);
     }
 };
-bool comparator(const Node &s1 ,const Node &s2)
-{
+bool comparator(const Node &s1 ,const Node &s2){
+
     if(s1.arrivalTime == s2.arrivalTime)
     {
         return s1.executionTime < s2.executionTime;
     }
     return s1.arrivalTime < s2.arrivalTime;
 }
-bool comparatorPeriod(const Node &s1 ,const Node &s2)
-{
+bool comparatorPeriod(const Node &s1 ,const Node &s2){
+
     if(s1.arrivalTime == s2.arrivalTime)
     {
         return s1.period < s2.period;
     }
     return s1.arrivalTime < s2.arrivalTime;
 }
-bool comparatorDeadline(const Node &s1 ,const Node &s2)
-{
+bool comparatorDeadline(const Node &s1 ,const Node &s2){
+
     if(s1.arrivalTime == s2.arrivalTime)
     {
         return s1.deadline < s2.deadline;
     }
     return s1.arrivalTime < s2.arrivalTime;
 }
+class smallestDeadlineComparator{
+	public:
+	    int operator() (const Node &p1, const Node &p2)
+	    {
+	        return p1.deadline > p2.deadline;
+	    }
+};
+
 vector<ll> split(string s){
 
     vector<ll> arr;
@@ -67,6 +75,16 @@ vector<ll> split(string s){
     }
     arr.push_back(val);
     return arr;
+}
+
+ll hyperperiod(vector<Node> tasks){
+	ll h;
+	h = tasks[0].period * tasks[1].period / (__gcd(tasks[0].period,tasks[1].period));
+	for(int i=2;i<tasks.size();i++)
+	{
+		h = h*tasks[i].period / (__gcd(h,tasks[i].period));
+	}
+	return h;
 }
 
 void fifo(vector<Node> tasks){
@@ -229,16 +247,126 @@ void weighted_round_robin(vector<Node> tasks){
 
 void rma(vector<Node> tasks){
 
-}
-ll hyperperiod(vector<Node> tasks){
-	ll h;
-	h = tasks[0].period * tasks[1].period / (__gcd(tasks[0].period,tasks[1].period));
-	for(int i=2;i<tasks.size();i++)
+	cout << "Rate monotonic Algorithm ... " << endl;
+	sort(tasks.begin(),tasks.end(),comparatorPeriod);
+	ll t = 0;
+	ll h = hyperperiod(tasks);
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	vector<bool> isReady(tasks.size()+1);
+	
+	for(int i=0;i<tasks.size();i++)
 	{
-		h = h*tasks[i].period / (__gcd(h,tasks[i].period));
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+		isReady[tasks[i].id] = true;
 	}
-	return h;
+
+	ll i=0;
+	ll selectTask=-1;
+	cout << "(" << t << ")" ;
+	while(t < h)
+	{
+		for(ll i=0;i<tasks.size();i++)
+		{
+			if(!isReady[tasks[i].id] && tasks[i].arrivalTime <= t && t % tasks[i].period == 0)
+			{
+				isReady[tasks[i].id] = true;
+			}
+		}
+		selectTask = -1;
+		ll minPeriod = INT_MAX;
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(minPeriod > tasks[i].period) // if same period then lowest task number
+				{
+					minPeriod = tasks[i].period;
+					selectTask = i;
+				}
+			}
+		}
+
+		if(selectTask == -1)
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+	        cout << "--" << tasks[selectTask].name << "--";
+			tempExecutionTime[tasks[selectTask].id]--;
+			if(tempExecutionTime[tasks[selectTask].id] == 0)
+	    	{
+	    		tempExecutionTime[tasks[selectTask].id] = tasks[selectTask].executionTime;
+	    		isReady[tasks[selectTask].id] = false;
+	    	}
+		}
+		t++;
+        cout << "(" << t << ")";
+	}
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
 }
+
+void dma(vector<Node> tasks){
+
+	cout << "Deadline Monotonic Algorithm ... " << endl;
+	sort(tasks.begin(),tasks.end(),comparatorDeadline);
+	ll t = 0;
+	ll h = hyperperiod(tasks);
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	vector<bool> isReady(tasks.size()+1);
+	
+	for(int i=0;i<tasks.size();i++)
+	{
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+		isReady[tasks[i].id] = true;
+	}
+
+	ll i=0;
+	ll selectTask=-1;
+	cout << "(" << t << ")" ;
+	while(t < h)
+	{
+		for(ll i=0;i<tasks.size();i++)
+		{
+			if(!isReady[tasks[i].id] && tasks[i].arrivalTime <= t && t % tasks[i].period == 0)
+			{
+				isReady[tasks[i].id] = true;
+			}
+		}
+		selectTask = -1;
+		ll minDeadline = INT_MAX;
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(minDeadline > tasks[i].deadline) // if same deadline then lowest task number
+				{
+					minDeadline = tasks[i].deadline;
+					selectTask = i;
+				}
+			}
+		}
+
+		if(selectTask == -1)
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+	        cout << "--" << tasks[selectTask].name << "--";
+			tempExecutionTime[tasks[selectTask].id]--;
+			if(tempExecutionTime[tasks[selectTask].id] == 0)
+	    	{
+	    		tempExecutionTime[tasks[selectTask].id] = tasks[selectTask].executionTime;
+	    		isReady[tasks[selectTask].id] = false;
+	    	}
+		}
+		t++;
+        cout << "(" << t << ")";
+	}
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
+}
+
 void cyclic(vector<Node> tasks){
 
 	cout << "\nCyclic " << endl;
@@ -279,6 +407,7 @@ void cyclic(vector<Node> tasks){
 	}
 	f = frames[frames.size()-1];
 	cout << endl;
+
 	vector<Node> subtasks;
 	for(ll i=0;i<tasks.size();i++)
 	{
@@ -327,15 +456,6 @@ void cyclic(vector<Node> tasks){
 
     cout << endl << "_______________________________________________________________________________________________________________" << endl;
 }
-
-class smallestDeadlineComparator
-{
-public:
-    int operator() (const Node &p1, const Node &p2)
-    {
-        return p1.deadline > p2.deadline;
-    }
-};
 
 void edf(vector<Node> tasks){
 
@@ -505,7 +625,14 @@ int main(){
         getline(fin, line);
         if(line.length() > 0){
             vector<ll> arr = split(line);
-            tasks.push_back(Node(n+1,arr[0],arr[1],arr[2],arr[3],arr[4]));
+            if(arr.size() < 5)
+            {
+				tasks.push_back(Node(n+1,arr[0],arr[1],arr[2],arr[3]));
+            }
+            else
+            {
+            	tasks.push_back(Node(n+1,arr[0],arr[1],arr[2],arr[3],arr[4]));
+            }
             n++;
         }
     }
@@ -527,10 +654,10 @@ int main(){
     //dma(tasks);
 
 
-
-    //cyclic(tasks);
+    cyclic(tasks);
     //edf(tasks);
-    lst(tasks);
+    //lst(tasks);
+
 
     return 0;
 }

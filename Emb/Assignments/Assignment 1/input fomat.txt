@@ -1,6 +1,5 @@
 arrivalTime executionTime period deadline quatumTime
 
-
 //cyclic scheduling
 0 1 4 4 3
 0 2 5 7 2
@@ -14,4 +13,17 @@ arrivalTime executionTime period deadline quatumTime
 
 
 //lst
+0 3 20 7 3
+0 2 5 4 2
+0 2 10 8 3
+
+//rma
+0 1 4 4 3
+0 2 5 5 2
+0 5 20 20 3
+
+//dma
+0 1 4 4 3
+0 2 5 5 2
+0 5 20 20 3
 
