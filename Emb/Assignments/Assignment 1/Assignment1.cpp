@@ -56,6 +56,13 @@ class smallestDeadlineComparator{
 	    }
 };
 
+class smallestExecutionComparator{
+	public:
+	    int operator() (const Node &p1, const Node &p2)
+	    {
+	        return p1.executionTime > p2.executionTime;
+	    }
+};
 vector<ll> split(string s){
 
     vector<ll> arr;
@@ -199,47 +206,68 @@ void weighted_round_robin(vector<Node> tasks){
     cout << endl << "Weighted Round Robin " << endl;
     sort(tasks.begin(), tasks.end(), comparator);
 
-    queue<Node> readyQueue;
+    //queue<Node> readyQueue;
+
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	vector<bool> isReady(tasks.size()+1,false);
+	
+	for(int i=0;i<tasks.size();i++)
+	{
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+	}
 
     ll t = 0;
     ll i = 0,completed=0;
 
     cout << "(" << t << ")" ;
-    while( completed < tasks.size() || !readyQueue.empty())
+    while( completed < tasks.size())
     {
-        while(i < tasks.size() && tasks[i].arrivalTime <= t) // insert all available job at time t in readyQueue
+        while(i < tasks.size() && tasks[i].arrivalTime <= t && !isReady[tasks[i].id]) // insert all available job at time t in readyQueue
         {
-            readyQueue.push(tasks[i]);
+        	isReady[tasks[i].id] = true;
             i++;
         }
-        if(readyQueue.empty()) // If no jobs available at time t .. then idle
-        {
-            cout << "--*--" ;
-        }
-        else // jobs are available, so need to execute
-        {
-            if(readyQueue.front().tempQuantum > 0 && readyQueue.front().executionTime > 0) //
-            {
-                cout << "--" << readyQueue.front().name << "--";
-                readyQueue.front().executionTime--;
-                readyQueue.front().tempQuantum--;
-            }
-            if( readyQueue.front().executionTime > 0 && readyQueue.front().tempQuantum == 0) // quatum time completed for first job ... but job has not completed
-            {
-                // task is preemted and needs to placed at end of the ready queue
-                readyQueue.front().tempQuantum = readyQueue.front().quantum;
-                Node node = readyQueue.front();
-                readyQueue.pop();
-                readyQueue.push(node);
-            }
-            if(readyQueue.front().executionTime == 0) // job completed
-            {
-                completed++;
-                readyQueue.front().tempQuantum = readyQueue.front().quantum;
-                readyQueue.pop();
-            }
-        }
-        t++;
+
+		ll selectTask = -1;
+		ll maxExecution = INT_MIN;
+		ll maxQuantum = INT_MIN;
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(maxExecution < tempExecutionTime[tasks[i].id])
+				{
+					maxExecution = tempExecutionTime[tasks[i].id];
+					selectTask = i;
+					maxQuantum = tasks[i].quantum;
+				}
+				else if(maxExecution == tempExecutionTime[tasks[i].id] )
+				{
+					if(maxQuantum < tasks[i].quantum)
+					{
+						maxQuantum = tasks[i].quantum;
+						selectTask = i;
+					}
+				}
+			}
+		}
+
+		if(selectTask == -1)
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+	        cout << "--" << tasks[selectTask].name << "--";
+			tempExecutionTime[tasks[selectTask].id]--;
+			if(tempExecutionTime[tasks[selectTask].id] == 0)
+	    	{
+	    		tempExecutionTime[tasks[selectTask].id] = tasks[selectTask].executionTime;
+	    		isReady[tasks[selectTask].id] = false;
+	    		completed++;
+	    	}
+		}
+		t++;
         cout << "(" << t << ")";
     }
     cout << endl << "_______________________________________________________________________________________________________________" << endl;
@@ -251,9 +279,22 @@ void rma(vector<Node> tasks){
 	sort(tasks.begin(),tasks.end(),comparatorPeriod);
 	ll t = 0;
 	ll h = hyperperiod(tasks);
+
+	float utilization = 0;
+	for (int i = 0; i < tasks.size(); ++i)
+	{
+		utilization += (1.0*tasks[i].executionTime) / min(tasks[i].period,tasks[i].deadline);
+	}
+
+	if(utilization > 1.0)
+	{
+		cout << "Not Schedulable !" << endl;
+		return;
+	}
+
 	vector<ll> tempExecutionTime(tasks.size()+1);
 	vector<bool> isReady(tasks.size()+1);
-	
+
 	for(int i=0;i<tasks.size();i++)
 	{
 		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
@@ -312,9 +353,21 @@ void dma(vector<Node> tasks){
 	sort(tasks.begin(),tasks.end(),comparatorDeadline);
 	ll t = 0;
 	ll h = hyperperiod(tasks);
+
+	float utilization = 0;
+	for (int i = 0; i < tasks.size(); ++i)
+	{
+		utilization += (1.0*tasks[i].executionTime) / min(tasks[i].period,tasks[i].deadline);
+	}
+	if(utilization > 1)
+	{
+		cout << "Not Schedulable !" << endl;
+		return;
+	}
+
 	vector<ll> tempExecutionTime(tasks.size()+1);
 	vector<bool> isReady(tasks.size()+1);
-	
+
 	for(int i=0;i<tasks.size();i++)
 	{
 		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
@@ -343,6 +396,158 @@ void dma(vector<Node> tasks){
 				{
 					minDeadline = tasks[i].deadline;
 					selectTask = i;
+				}
+			}
+		}
+
+		if(selectTask == -1)
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+	        cout << "--" << tasks[selectTask].name << "--";
+			tempExecutionTime[tasks[selectTask].id]--;
+			if(tempExecutionTime[tasks[selectTask].id] == 0)
+	    	{
+	    		tempExecutionTime[tasks[selectTask].id] = tasks[selectTask].executionTime;
+	    		isReady[tasks[selectTask].id] = false;
+	    	}
+		}
+		t++;
+        cout << "(" << t << ")";
+	}
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
+}
+
+void shortest_Execution_time_first(vector<Node> tasks){
+
+	cout << "Shortest Execution Time First" << endl;
+
+	sort(tasks.begin(),tasks.end(),comparator);
+	ll t = 0;
+	ll h = hyperperiod(tasks);
+	cout << "(" << t << ")" ;
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	vector<bool> isReady(tasks.size()+1,false);
+
+	for(int i=0;i<tasks.size();i++)
+	{
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+	}
+
+	ll i=0;
+	ll selectTask=-1,previouslySelectedTask=-1;
+	while(t < h)
+	{
+		for(ll i=0;i<tasks.size();i++)
+		{
+			if(!isReady[tasks[i].id] && tasks[i].arrivalTime <= t && t % tasks[i].period == 0)
+			{
+				isReady[tasks[i].id] = true;
+			}
+		}
+		previouslySelectedTask = selectTask;
+		selectTask = -1;
+		ll minExecution = INT_MAX;
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(minExecution > tempExecutionTime[tasks[i].id])
+				{
+					minExecution = tempExecutionTime[tasks[i].id];
+					selectTask = i;
+				}
+			}
+		}
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(minExecution == tempExecutionTime[tasks[i].id])
+				{
+					if( i == previouslySelectedTask)
+					{
+						selectTask = i;
+						break;
+					}
+				}
+			}
+		}
+
+		if(selectTask == -1)
+		{
+		    cout << "--*--" ;
+		}
+		else
+		{
+	        cout << "--" << tasks[selectTask].name << "--";
+			tempExecutionTime[tasks[selectTask].id]--;
+			if(tempExecutionTime[tasks[selectTask].id] == 0)
+	    	{
+	    		tempExecutionTime[tasks[selectTask].id] = tasks[selectTask].executionTime;
+	    		isReady[tasks[selectTask].id] = false;
+	    	}
+		}
+		t++;
+        cout << "(" << t << ")";
+	}
+    cout << endl << "_______________________________________________________________________________________________________________" << endl;
+}
+
+void longest_Execution_time_first(vector<Node> tasks){
+
+	cout << "Longest Execution Time First" << endl;
+
+	sort(tasks.begin(),tasks.end(),comparator);
+	ll t = 0;
+	ll h = hyperperiod(tasks);
+	cout << "(" << t << ")" ;
+	vector<ll> tempExecutionTime(tasks.size()+1);
+	vector<bool> isReady(tasks.size()+1,false);
+
+	for(int i=0;i<tasks.size();i++)
+	{
+		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
+	}
+
+	ll i=0;
+	ll selectTask=-1,previouslySelectedTask=-1;
+	while(t < h)
+	{
+		for(ll i=0;i<tasks.size();i++)
+		{
+			if(!isReady[tasks[i].id] && tasks[i].arrivalTime <= t && t % tasks[i].period == 0)
+			{
+				isReady[tasks[i].id] = true;
+			}
+		}
+		previouslySelectedTask = selectTask;
+		selectTask = -1;
+		ll maxExecution = INT_MIN;
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(maxExecution <= tempExecutionTime[tasks[i].id])
+				{
+					maxExecution = tempExecutionTime[tasks[i].id];
+					selectTask = i;
+				}
+			}
+		}
+		for(ll i=0; i < tasks.size();i++)
+		{
+			if(isReady[tasks[i].id] && tempExecutionTime[tasks[i].id] > 0)
+			{
+				if(maxExecution == tempExecutionTime[tasks[i].id])
+				{
+					if( i == previouslySelectedTask)
+					{
+						selectTask = i;
+						break;
+					}
 				}
 			}
 		}
@@ -405,13 +610,18 @@ void cyclic(vector<Node> tasks){
 	{
 		cout << frames[i] << " ";
 	}
+	if(frames.size() == 0)
+	{
+		cout << "No frame available !" << endl;
+		return;
+	}
 	f = frames[frames.size()-1];
 	cout << endl;
 
 	vector<Node> subtasks;
 	for(ll i=0;i<tasks.size();i++)
 	{
-		ll arrivalTime = 0;
+		ll arrivalTime = tasks[i].arrivalTime;
 		ll deadline = tasks[i].period;
 		for(ll j=0;j<h/tasks[i].period;j++)
 		{
@@ -461,6 +671,16 @@ void edf(vector<Node> tasks){
 
 	cout << "Earlist Deadline First" << endl;
 
+	float utilization = 0;
+	for (int i = 0; i < tasks.size(); ++i)
+	{
+		utilization += (1.0*tasks[i].executionTime) / min(tasks[i].period,tasks[i].deadline);
+	}
+	if(utilization > 1)
+	{
+		cout << "Not Schedulable !" << endl;
+		return;
+	}
 	sort(tasks.begin(),tasks.end(),comparator);
 	ll t = 0;
 	ll completed = 0;
@@ -526,7 +746,7 @@ void lst(vector<Node> tasks){
 	cout << "(" << t << ")" ;
 	vector<ll> tempExecutionTime(tasks.size()+1);
 	vector<bool> isReady(tasks.size()+1);
-	
+
 	for(int i=0;i<tasks.size();i++)
 	{
 		tempExecutionTime[tasks[i].id] = tasks[i].executionTime;
@@ -555,11 +775,11 @@ void lst(vector<Node> tasks){
 				if(tasks[i].period <= t)
 				{
 					// real time since cycle starts
-					slackTime = tasks[i].deadline - (t % tasks[i].period) - tempExecutionTime[tasks[i].id];	
+					slackTime = tasks[i].deadline - (t % tasks[i].period) - tempExecutionTime[tasks[i].id];
 				}
 				else
 				{
-					slackTime = tasks[i].deadline - t - tempExecutionTime[tasks[i].id];		
+					slackTime = tasks[i].deadline - t - tempExecutionTime[tasks[i].id];
 				}
 
 				if(minSlack > slackTime)
@@ -577,11 +797,11 @@ void lst(vector<Node> tasks){
 				if(tasks[i].period < t)
 				{
 					// real time since cycle starts
-					slackTime = tasks[i].deadline - (t % tasks[i].period) - tempExecutionTime[tasks[i].id];	
+					slackTime = tasks[i].deadline - (t % tasks[i].period) - tempExecutionTime[tasks[i].id];
 				}
 				else
 				{
-					slackTime = tasks[i].deadline - t - tempExecutionTime[tasks[i].id];		
+					slackTime = tasks[i].deadline - t - tempExecutionTime[tasks[i].id];
 				}
 
 				if(minSlack == slackTime)
@@ -594,7 +814,7 @@ void lst(vector<Node> tasks){
 				}
 			}
 		}
-		
+
 		if(selectTask == -1)
 		{
 		    cout << "--*--" ;
@@ -644,6 +864,7 @@ int main(){
         cout << "T" << tasks[i].id << " " << tasks[i].arrivalTime << " " << tasks[i].executionTime << " " << tasks[i].period << " " << tasks[i].deadline << " " << tasks[i].quantum << endl;
     }
     cout << endl;
+
     //fifo(tasks);
     //lifo(tasks);
 
@@ -653,6 +874,8 @@ int main(){
     //rma(tasks);
     //dma(tasks);
 
+    //shortest_Execution_time_first(tasks);
+    //longest_Execution_time_first(tasks);
 
     cyclic(tasks);
     //edf(tasks);
