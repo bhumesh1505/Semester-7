@@ -1,10 +1,11 @@
 import pandas as pd
 from glob import glob
 import json
-import time
+from timeit import default_timer as timer
 import math
 import random
 # import pprint.pprint as pp
+import matplotlib.pyplot as plt
 
 INFINITE = 100000
 
@@ -12,7 +13,8 @@ inv_index = {}
 corpus = []
 corpus.append([])
 cachedIndex = {}
-totalDocuments = 10
+totalDocuments = 43990
+
 
 def parsetexts(stopwords):
     corpusFile = open('corpus.txt', 'r')
@@ -75,9 +77,13 @@ def nextBinarySearch(term , documentId, termIndex):
     return documentId, inv_index[term][documentId][BinarySearch( inv_index[term][documentId] , termIndex , 0 , len(inv_index[term][documentId])-1 )]
 
 def nextLinearSearch(term, documentId, termIndex):
-    if(term not in cachedIndex):
-        cachedIndex[term] = 0
-
+    if(documentId not in cachedIndex):
+        cachedIndex[documentId] = {}
+        cachedIndex[documentId][term] = 0
+    else:
+        if(term not in cachedIndex[documentId]):
+            cachedIndex[documentId][term] = 0
+    
     if len(inv_index[term]) == 0  :
         return INFINITE, INFINITE
 
@@ -92,21 +98,29 @@ def nextLinearSearch(term, documentId, termIndex):
             return nextDocumentId, inv_index[term][nextDocumentId][0]
 
     if termIndex < inv_index[term][documentId][0]:
-        cachedIndex[term] = 0
-        return documentId,inv_index[term][documentId][cachedIndex[term]]
+        cachedIndex[documentId][term] = 0
+        return documentId,inv_index[term][documentId][cachedIndex[documentId][term]]
     
-    if cachedIndex[term] > 0 and termIndex < inv_index[term][documentId][cachedIndex[term]-1] :
-        cachedIndex[term] = 0
-
-    while(inv_index[term][documentId][cachedIndex[term]] <= termIndex):
-        cachedIndex[term] = cachedIndex[term] + 1
+    print('documentId ', documentId, ' term ', term, ' cachedIndex ', cachedIndex[documentId][term])
+        
+    if cachedIndex[documentId][term] > 0 and termIndex < inv_index[term][documentId][cachedIndex[documentId][term]-1] :
+        cachedIndex[documentId][term] = 0
     
-    return documentId,inv_index[term][documentId][cachedIndex[term]]
+    while(cachedIndex[documentId][term] < len(inv_index[term][documentId]) and inv_index[term][documentId][cachedIndex[documentId][term]] <= termIndex):
+        cachedIndex[documentId][term] = cachedIndex[documentId][term] + 1
+    if(cachedIndex[documentId][term] == len(inv_index[term][documentId])):
+        return INFINITE,INFINITE
+    else:
+        return documentId,inv_index[term][documentId][cachedIndex[documentId][term]]
 
 def nextGallopingSearch(term, documentId, termIndex):
-    if(term not in cachedIndex):
-        cachedIndex[term] = 0
-
+    if(documentId not in cachedIndex):
+        cachedIndex[documentId] = {}
+        cachedIndex[documentId][term] = 0
+    else:
+        if(term not in cachedIndex[documentId]):
+            cachedIndex[documentId][term] = 0
+    
     if len(inv_index[term]) == 0 :
         return INFINITE, INFINITE
     
@@ -121,14 +135,14 @@ def nextGallopingSearch(term, documentId, termIndex):
             return nextDocumentId, inv_index[term][nextDocumentId][0]
 
     if termIndex < inv_index[term][documentId][0]:
-        cachedIndex[term] = 0
-        return documentId, inv_index[term][documentId][cachedIndex[term]]
+        cachedIndex[documentId][term] = 0
+        return documentId, inv_index[term][documentId][cachedIndex[documentId][term]]
 
-    if cachedIndex[term] > 0 and termIndex >= inv_index[term][documentId][cachedIndex[term]-1] :
-        low = cachedIndex[term]-1
-    else:
-        low = 0
-
+    # if cachedIndex[documentId][term] > 0 and termIndex >= inv_index[term][documentId][cachedIndex[documentId][term]-1] :
+    #     low = cachedIndex[documentId][term]-1
+    # else:
+    #     low = 0
+    low = 0
     jump = 1
     high = low + jump
     length = len(inv_index[term][documentId])
@@ -144,8 +158,8 @@ def nextGallopingSearch(term, documentId, termIndex):
 
     print('low : ', low)
     print('high : ',high)
-    cachedIndex[term] = BinarySearch(inv_index[term][documentId], termIndex, low, high)
-    return  documentId, inv_index[term][documentId][cachedIndex[term]]
+    cachedIndex[documentId][term] = BinarySearch(inv_index[term][documentId], termIndex, low, high)
+    return  documentId, inv_index[term][documentId][cachedIndex[documentId][term]]
 
 def removeStopWords(Phrase):
     Phrase2 = []
@@ -154,10 +168,18 @@ def removeStopWords(Phrase):
             Phrase2.append(word)
     return Phrase2
 
-def nextPhrase(Phrase, position, documentId):
+def nextPhrase(Phrase, position, documentId, searchType):
     n = len(Phrase)
 
-    documentIdStart, u = nextBinarySearch(Phrase[0],documentId,position)
+    documentIdStart , u , documentIdEnd , v = 0 ,0 , 0, 0
+
+    if( searchType == 'binary'):
+        documentIdStart, u = nextBinarySearch(Phrase[0],documentId,position)
+    elif( searchType == 'linear' ):
+        documentIdStart, u = nextLinearSearch(Phrase[0],documentId,position)
+    elif( searchType == 'galloping' ):
+        documentIdStart, u = nextGallopingSearch(Phrase[0],documentId,position)
+    
     print('documentIdStart ', documentIdStart, 'u ', u)
 
     v = -1
@@ -167,8 +189,13 @@ def nextPhrase(Phrase, position, documentId):
     documentIdEnd = documentIdStart
 
     for i in range(1,n):
-        documentIdEnd, v = nextBinarySearch(Phrase[i],documentIdEnd,v)
-
+        if( searchType == 'binary'):
+            documentIdEnd, v = nextBinarySearch(Phrase[i],documentIdEnd,v)
+        elif( searchType == 'linear' ):
+            documentIdEnd, v = nextLinearSearch(Phrase[i],documentIdEnd,v)
+        elif( searchType == 'galloping' ):        
+            documentIdEnd, v = nextGallopingSearch(Phrase[i],documentIdEnd,v)
+        
     print('documentIdEnd ', documentIdEnd, 'v ', v)
 
     if(documentIdStart == INFINITE):
@@ -178,11 +205,11 @@ def nextPhrase(Phrase, position, documentId):
         return documentIdStart,u,v
     else:
         if(documentIdStart == documentIdEnd):
-            return nextPhrase(Phrase,v-n,documentIdStart)
+            return nextPhrase(Phrase,v-n,documentIdStart,searchType)
         else:
-            return nextPhrase(Phrase,-1,documentIdStart+1)
+            return nextPhrase(Phrase,-1,documentIdStart+1,searchType)
 
-def nextPhrase2(Phrase, position, documentId):
+def nextPhrase2(Phrase, position, documentId, searchType):
     if(len(Phrase) > 0):
         print("phrase :",Phrase)
         Phrase = Phrase.split()
@@ -191,8 +218,9 @@ def nextPhrase2(Phrase, position, documentId):
         Phrase = removeStopWords(Phrase)
         print("phrase :",Phrase)
         if(len(Phrase) > 0):
-            return nextPhrase(Phrase, position, documentId)
+            return nextPhrase(Phrase, position, documentId, searchType)
     return INFINITE,INFINITE,INFINITE
+
 stopwords = getStopWords()
 # print(stopwords)
 parsetexts(stopwords)
@@ -227,21 +255,59 @@ print("_______________________###____________________")
 
 # print( len(inv_index) )
 
-for i in range(1000):
-    documentId = random.randint(1,totalDocuments)
-    position = max(0,random.randint(0,len(corpus[documentId]))-5)
-    Phrase = ''
-    for j in range(5):
-        Phrase = Phrase + corpus[documentId][position+j] + ' ';
+searchTypes = ['binary','linear','galloping']
+for searchType in searchTypes:
+    length = []
+    time = []
+    for k in range(3):
+        start = timer()
+        for i in range(4000):
+            documentId = random.randint(1,totalDocuments)
+            PhraseLen = 0;
+            if(k == 0):
+                PhraseLen = random.randint(2,3)
+            elif(k == 1):
+                PhraseLen = random.randint(4,10)
+            else:
+                PhraseLen = random.randint(11,30)
+            
+            position = max(0,random.randint(0,len(corpus[documentId]))-PhraseLen)
+            Phrase = ''
+            for j in range( PhraseLen ):
+                Phrase = Phrase + corpus[documentId][position+j] + ' ';
+            print(i)
+            print('searchType :%s'%searchType)
+            print('Phrase : %s'%Phrase)
+            print('position : %d'%position)
+            print('documentId : %d'%documentId)
 
-    print('Phrase : %s'%Phrase)
-    print('position : %d'%position)
-    print('documentId : %d'%documentId)
-    documentId,u,v = nextPhrase2(Phrase, position-1 , documentId)
-    print(i)
-    print('documentId : %d'%documentId)
-    print('start : %d '%u )
-    print('end : %d ' %v)
-    print('_________________________________________')
+            start1 = timer()
+            documentId,u,v = nextPhrase2(Phrase, position-1 , documentId, searchType)
+            end1 = timer()
+
+            print('documentId : %d'%documentId)
+            print('start : %d '%u )
+            print('end : %d ' %v)
+            print('_________________________________________')
+
+        if(k == 0):
+            length.append(2)
+        elif(k == 1):
+            length.append(7)
+        else:
+            length.append(15)
         
+        time.append((timer()-start)/4000)
+    if(searchType == 'binary'):
+        plt.plot(length, time ,'r')
+    elif(searchType == 'linear'):
+        plt.plot(length, time ,'g')
+    elif(searchType == 'galloping'):
+        plt.plot(length, time ,'b')
+        
+    plt.xlabel("length (%s)"%searchType)
+    plt.ylabel("Time (%s)"%searchType)
+
+plt.show()
+
 
