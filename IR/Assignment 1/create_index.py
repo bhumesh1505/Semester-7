@@ -1,10 +1,7 @@
-import pandas as pd
-from glob import glob
-import json
 from timeit import default_timer as timer
 import math
 import random
-# import pprint.pprint as pp
+from pprint import pprint as pp
 import matplotlib.pyplot as plt
 
 INFINITE = 100000
@@ -13,8 +10,7 @@ inv_index = {}
 corpus = []
 corpus.append([])
 cachedIndex = {}
-totalDocuments = 43990
-
+totalDocuments = 100
 
 def parsetexts(stopwords):
     corpusFile = open('corpus.txt', 'r')
@@ -138,10 +134,10 @@ def nextGallopingSearch(term, documentId, termIndex):
         cachedIndex[documentId][term] = 0
         return documentId, inv_index[term][documentId][cachedIndex[documentId][term]]
 
-    # if cachedIndex[documentId][term] > 0 and termIndex >= inv_index[term][documentId][cachedIndex[documentId][term]-1] :
-    #     low = cachedIndex[documentId][term]-1
-    # else:
-    #     low = 0
+    if cachedIndex[documentId][term] > 0 and termIndex >= inv_index[term][documentId][cachedIndex[documentId][term]-1] :
+        low = cachedIndex[documentId][term]-1
+    else:
+        low = 0
     low = 0
     jump = 1
     high = low + jump
@@ -156,8 +152,6 @@ def nextGallopingSearch(term, documentId, termIndex):
     if(high >= length ):
         high = length - 1
 
-    print('low : ', low)
-    print('high : ',high)
     cachedIndex[documentId][term] = BinarySearch(inv_index[term][documentId], termIndex, low, high)
     return  documentId, inv_index[term][documentId][cachedIndex[documentId][term]]
 
@@ -170,7 +164,7 @@ def removeStopWords(Phrase):
 
 def nextPhrase(Phrase, position, documentId, searchType):
     n = len(Phrase)
-
+    print("nextPhrase called ", position , documentId)
     documentIdStart , u , documentIdEnd , v = 0 ,0 , 0, 0
 
     if( searchType == 'binary'):
@@ -180,7 +174,7 @@ def nextPhrase(Phrase, position, documentId, searchType):
     elif( searchType == 'galloping' ):
         documentIdStart, u = nextGallopingSearch(Phrase[0],documentId,position)
     
-    print('documentIdStart ', documentIdStart, 'u ', u)
+    # print('documentIdStart ', documentIdStart, 'u ', u)
 
     v = -1
     if(documentIdStart == documentId):
@@ -196,7 +190,7 @@ def nextPhrase(Phrase, position, documentId, searchType):
         elif( searchType == 'galloping' ):        
             documentIdEnd, v = nextGallopingSearch(Phrase[i],documentIdEnd,v)
         
-    print('documentIdEnd ', documentIdEnd, 'v ', v)
+    # print('documentIdEnd ', documentIdEnd, 'v ', v)
 
     if(documentIdStart == INFINITE):
         return INFINITE,INFINITE,INFINITE
@@ -211,22 +205,116 @@ def nextPhrase(Phrase, position, documentId, searchType):
 
 def nextPhrase2(Phrase, position, documentId, searchType):
     if(len(Phrase) > 0):
-        print("phrase :",Phrase)
         Phrase = Phrase.split()
-        print("phrase :",Phrase)
-        print(Phrase[0])
         Phrase = removeStopWords(Phrase)
-        print("phrase :",Phrase)
         if(len(Phrase) > 0):
             return nextPhrase(Phrase, position, documentId, searchType)
     return INFINITE,INFINITE,INFINITE
 
+def mostfrequent():
+    Phrases = ['the kings','the north','the portuguese','the state','the first','the monarchs','the establishment','the museum','the throne']
+    searchTypes = ['linear','binary','galloping']
+    for searchType in searchTypes:
+        length = 0
+        time =0
+        start = timer()
+        for i in range(5):
+            for Phrase in Phrases:
+                print('searchType :%s'%searchType)
+                print('Phrase : %s'%Phrase)
+
+                documentId,u,v = nextPhrase2(Phrase, -1 , 0 , searchType)
+                
+                print('documentId : %d'%documentId)
+                print('start : %d '%u )
+                print('end : %d ' %v)
+                print('_________________________________________')
+
+                timex = timer() - start
+                time = (timex)/5
+
+            length = len(inv_index['the'])
+            if(searchType == 'binary'):
+                plt.plot(length, time ,'r^')
+            elif(searchType == 'linear'):
+                plt.plot(length, time ,'g^')
+            elif(searchType == 'galloping'):
+                plt.plot(length, time ,'b^')
+            
+        plt.xlabel("length ")
+        plt.ylabel("Time ")
+    plt.show()
+
+def find():
+    searchTypes = ['galloping','linear','binary']
+    # searchTypes = ['binary']
+
+    for searchType in searchTypes:
+        obj = {}
+        for k in range(3):
+            for i in range(4000):
+                documentId = random.randint(1,min(totalDocuments,25))
+                PhraseLen = 0;
+                if(k == 0):
+                    PhraseLen = random.randint(2,3)
+                elif(k == 1):
+                    PhraseLen = random.randint(4,10)
+                else:
+                    PhraseLen = random.randint(11,100)
+                
+                position = max(0,random.randint(0,len(corpus[documentId]))-PhraseLen)
+                Phrase = ''
+                for j in range( PhraseLen ):
+                    Phrase = Phrase + corpus[documentId][position+j] + ' ';
+
+                print(i)
+                print('searchType :%s'%searchType)
+                print('Phrase : %s'%Phrase)
+                print('position : %d'%position)
+                print('documentId : %d'%documentId)
+
+                start = timer()
+                documentId,u,v = nextPhrase2(Phrase, position-1 , documentId , searchType)    
+                end = timer()
+
+                print('documentId : %d'%documentId)
+                print('start : %d '%u )
+                print('end : %d ' %v)
+                print('_________________________________________')
+
+                if( PhraseLen not in obj ):
+                    obj[PhraseLen] = {}
+                    obj[PhraseLen]['time'] = end - start
+                    obj[PhraseLen]['count'] = 1
+                else:
+                    obj[PhraseLen]['time'] = obj[PhraseLen]['time'] + (end - start)
+                    obj[PhraseLen]['count'] = obj[PhraseLen]['count'] + 1 
+
+        time = []
+        length = []
+        
+        for PhraseLen in obj:
+            length.append(PhraseLen)
+            time.append(obj[PhraseLen]['time'] / obj[PhraseLen]['count'])
+
+        if(searchType == 'binary'):
+            plt.plot(length, time ,'r')
+        elif(searchType == 'linear'):
+            plt.plot(length, time ,'g')
+        elif(searchType == 'galloping'):
+            plt.plot(length, time ,'b')
+            
+        plt.xlabel("length")
+        plt.ylabel("Time")
+
+    plt.show()
+
+
 stopwords = getStopWords()
-# print(stopwords)
 parsetexts(stopwords)
 # print(corpus)
 print('\nFull Inverted Index')
-# print(inv_index)
+# pp(inv_index)
 
 print("_______________________###____________________")
 # print(inv_index['state'])
@@ -234,7 +322,7 @@ print("_______________________###____________________")
 # documentId,position = nextBinarySearch('state',3,-1)
 # print(documentId, position)
 
-# documentId, position = nextLinearSearch('baker',8,947)
+# documentId, position = nextLinearSearch('vermont',0,0)
 # print(documentId, position)
 
 # documentId, position = nextGallopingSearch('baker',8,946)
@@ -255,59 +343,6 @@ print("_______________________###____________________")
 
 # print( len(inv_index) )
 
-searchTypes = ['binary','linear','galloping']
-for searchType in searchTypes:
-    length = []
-    time = []
-    for k in range(3):
-        start = timer()
-        for i in range(4000):
-            documentId = random.randint(1,totalDocuments)
-            PhraseLen = 0;
-            if(k == 0):
-                PhraseLen = random.randint(2,3)
-            elif(k == 1):
-                PhraseLen = random.randint(4,10)
-            else:
-                PhraseLen = random.randint(11,30)
-            
-            position = max(0,random.randint(0,len(corpus[documentId]))-PhraseLen)
-            Phrase = ''
-            for j in range( PhraseLen ):
-                Phrase = Phrase + corpus[documentId][position+j] + ' ';
-            print(i)
-            print('searchType :%s'%searchType)
-            print('Phrase : %s'%Phrase)
-            print('position : %d'%position)
-            print('documentId : %d'%documentId)
+find()
 
-            start1 = timer()
-            documentId,u,v = nextPhrase2(Phrase, position-1 , documentId, searchType)
-            end1 = timer()
-
-            print('documentId : %d'%documentId)
-            print('start : %d '%u )
-            print('end : %d ' %v)
-            print('_________________________________________')
-
-        if(k == 0):
-            length.append(2)
-        elif(k == 1):
-            length.append(7)
-        else:
-            length.append(15)
-        
-        time.append((timer()-start)/4000)
-    if(searchType == 'binary'):
-        plt.plot(length, time ,'r')
-    elif(searchType == 'linear'):
-        plt.plot(length, time ,'g')
-    elif(searchType == 'galloping'):
-        plt.plot(length, time ,'b')
-        
-    plt.xlabel("length (%s)"%searchType)
-    plt.ylabel("Time (%s)"%searchType)
-
-plt.show()
-
-
+# mostfrequent()
